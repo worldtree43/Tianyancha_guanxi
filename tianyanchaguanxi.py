@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 import time
 import pandas as pd
+import random
 
 excel_file_path = '/Users/zhonghaitian/Desktop/公司名称.xlsx'
 df = pd.read_excel(excel_file_path)
@@ -51,14 +52,17 @@ for i in range(len(companies)):
         search_button = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="web-content"]/section/div/div/div[1]/div[1]/span[2]')))
         driver.execute_script("arguments[0].click();", search_button)
 
-        # 等待查询结果加载完成，这里设置为5秒，根据页面加载速度适当调整
-        time.sleep(15)
+        # 等待查询结果加载完成，这里设置为15秒，根据页面加载速度适当调整
+        time.sleep(random.uniform(7, 10))
 
+        # 等待图片加载完成点击下载按钮
         download_button = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="web-content"]/section/div/div/div[2]/div/div[3]/div/div[3]/div')))
         download_button.click()
-        time.sleep(10)
+        time.sleep(random.uniform(7, 10))
+
+        # 因为该网站清除搜索内容的xpath地址不定，采取主动刷新页面方式清除搜索内容
         driver.refresh()
-        time.sleep(10)
+        time.sleep(random.uniform(8, 10))
 # 关闭浏览器
 driver.quit()
 
