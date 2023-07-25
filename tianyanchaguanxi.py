@@ -8,6 +8,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 import time
 import pandas as pd
 import random
+import os
 
 # 从excel中获取公司名称
 def get_companies(file_path, sheet_name, column_name):
@@ -84,7 +85,15 @@ def tianyancha_relation_screenshot(companies, max_retry = 3):
     # 关闭浏览器
     driver.quit()
 
-    print("查询结果的截图已保存")
+def find_missing_files(folder_path, companies):
+    missing_files = []
+    for i in range(len(companies)):
+        for j in range(i + 1, len(companies)):
+            file_name = f"查关系图谱-{companies[i]}&{companies[j]}-天眼查.png"
+            file_path = os.path.join(folder_path, file_name)
+            if not os.path.exists(file_path):
+                missing_files.append(file_name)
+    return missing_files
 
 if __name__ == "__main__":
     excel_file = '/Users/zhonghaitian/Desktop/公司名称.xlsx'
@@ -92,3 +101,12 @@ if __name__ == "__main__":
     company_column = '公司列表'
     companies = get_companies(excel_file, sheet_name, company_column)
     tianyancha_relation_screenshot(companies, max_retry=3)
+    downloads_folder = "/Users/zhonghaitian/Downloads"
+    missing_files = find_missing_files(downloads_folder, companies)
+
+    if len(missing_files) == 0:
+        print("所有文件已保存。")
+    else:
+        print("以下文件未保存：")
+        for file_name in missing_files:
+            print(file_name)
