@@ -1,2 +1,2 @@
 # Tianyancha_guanxi
-批量下载天眼查关联关系
+本程序通过selenium模拟搜索并批量下载天眼查公司关系图
