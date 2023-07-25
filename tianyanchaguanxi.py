@@ -14,7 +14,7 @@ def get_companies(file_path, sheet_name, column_name):
     df = pd.read_excel(file_path, sheet_name=sheet_name)
     return df[column_name].tolist()
 
-def tianyancha_relation_screenshot(companies):
+def tianyancha_relation_screenshot(companies, max_retry = 3):
     # 配置ChromeOptions，指定浏览器驱动路径
     chrome_options = Options()
     chrome_options.add_argument("--disable-gpu")  # 禁用GPU加速，解决部分环境下的问题
@@ -36,43 +36,59 @@ def tianyancha_relation_screenshot(companies):
 
     for i in range(len(companies)):
         for j in range(i+1, len(companies)):
-            search_input_from = wait.until(EC.presence_of_element_located((By.XPATH, '//*[@id="fromKey"]')))
-            actions = ActionChains(driver)
-            actions.move_to_element(search_input_from)
-            actions.click()
-            actions.send_keys(companies[i])
-            actions.perform()
+            retry_count = 0
+            while retry_count < max_retry:
+                try:
+                    search_input_from = wait.until(EC.presence_of_element_located((By.XPATH, '//*[@id="fromKey"]')))
+                    actions = ActionChains(driver)
+                    actions.move_to_element(search_input_from)
+                    actions.click()
+                    actions.send_keys(companies[i])
+                    actions.perform()
 
-            search_input_to = wait.until(EC.presence_of_element_located((By.XPATH, '//*[@id="toKey"]')))
-            actions = ActionChains(driver)
-            actions.move_to_element(search_input_to)
-            actions.click()
-            actions.send_keys(companies[j])
-            actions.perform()
+                    search_input_to = wait.until(EC.presence_of_element_located((By.XPATH, '//*[@id="toKey"]')))
+                    actions = ActionChains(driver)
+                    actions.move_to_element(search_input_to)
+                    actions.click()
+                    actions.send_keys(companies[j])
+                    actions.perform()
 
-            # 等待搜索按钮出现并点击
-            search_button = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="web-content"]/section/div/div/div[1]/div[1]/span[2]')))
-            driver.execute_script("arguments[0].click();", search_button)
+                    # 等待搜索按钮出现并点击
+                    search_button = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="web-content"]/section/div/div/div[1]/div[1]/span[2]')))
+                    driver.execute_script("arguments[0].click();", search_button)
 
-            # 等待查询结果加载完成，这里设置为15秒，根据页面加载速度适当调整
-            time.sleep(random.uniform(7, 10))
+                    # 等待查询结果加载完成，这里设置为10秒，根据页面加载速度适当调整
+                    time.sleep(random.uniform(7, 10))
 
-            # 等待图片加载完成点击下载按钮
-            download_button = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="web-content"]/section/div/div/div[2]/div/div[3]/div/div[3]/div')))
-            download_button.click()
-            time.sleep(random.uniform(7, 10))
+                    # 等待图片加载完成点击下载按钮
+                    download_button = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="web-content"]/section/div/div/div[2]/div/div[3]/div/div[3]/div')))
+                    download_button.click()
+                    time.sleep(random.uniform(2, 5))
 
-            # 因为该网站清除搜索内容的xpath地址不定，采取主动刷新页面方式清除搜索内容
-            driver.refresh()
-            time.sleep(random.uniform(8, 10))
+                    close_button_from = wait.until(EC.element_to_be_clickable((By.XPATH,'//*[@id="web-content"]/section/div/div/div[1]/div[1]/div[1]/img')))
+                    close_button_from.click()
+                    close_button_to = wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="web-content"]/section/div/div/div[1]/div[1]/div[3]/img')))
+                    close_button_to.click()
+
+                    break
+
+                except Exception as e:
+                    # 处理加载失败情况，点击搜索按钮再次尝试查询
+                    print(f"加载失败，尝试重新查询，错误信息：{e}")
+                    retry_count += 1
+                    driver.refresh()
+                    time.sleep(3)
+
+            if retry_count >= max_retry:
+                print(f"查询失败：{companies[i]} 和 {companies[j]}")
     # 关闭浏览器
     driver.quit()
 
     print("查询结果的截图已保存")
 
 if __name__ == "__main__":
-    excel_file = '/path/to/your/excel_file.xlsx'
+    excel_file = '/Users/zhonghaitian/Desktop/公司名称.xlsx'
     sheet_name = 'Sheet1'
-    company_column = '公司名称'
+    company_column = '公司列表'
     companies = get_companies(excel_file, sheet_name, company_column)
-    tianyancha_relation_screenshot(companies)
+    tianyancha_relation_screenshot(companies, max_retry=3)
