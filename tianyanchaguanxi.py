@@ -5,6 +5,9 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+from docx import Document
+from docx.shared import Inches
+from PIL import Image
 import time
 import pandas as pd
 import random
@@ -15,7 +18,7 @@ def get_companies(file_path, sheet_name, column_name):
     df = pd.read_excel(file_path, sheet_name=sheet_name)
     return df[column_name].tolist()
 
-def tianyancha_relation_screenshot(companies, max_retry = 3):
+def tianyancha_relation_screenshot(companies, max_retry = 2):
     # 配置ChromeOptions，指定浏览器驱动路径
     chrome_options = Options()
     chrome_options.add_argument("--disable-gpu")  # 禁用GPU加速，解决部分环境下的问题
@@ -95,12 +98,28 @@ def find_missing_files(folder_path, companies):
                 missing_files.append(file_name)
     return missing_files
 
+def insert_image_and_text(doc, image_path, text):
+    try:
+        doc.add_paragraph().add_run().add_picture(image_path, width=Inches(6.0))
+        doc.add_paragraph(text)
+    except FileNotFoundError as e:
+        print(f"忽略图片 {image_path}，原因：{e}")
+
+def create_word_document(images_info):
+    doc = Document()
+    for image_info in images_info:
+        image_name, text = image_info
+        image_path = os.path.join("/Users/zhonghaitian/Downloads", image_name)
+        insert_image_and_text(doc, image_path, text)
+    doc.save("公司关联关系表.docx")
+
 if __name__ == "__main__":
     excel_file = '/Users/zhonghaitian/Desktop/公司名称.xlsx'
     sheet_name = 'Sheet1'
     company_column = '公司列表'
+    images_info = []
     companies = get_companies(excel_file, sheet_name, company_column)
-    tianyancha_relation_screenshot(companies, max_retry=3)
+    tianyancha_relation_screenshot(companies, max_retry=2)
     downloads_folder = "/Users/zhonghaitian/Downloads"
     missing_files = find_missing_files(downloads_folder, companies)
 
@@ -110,3 +129,12 @@ if __name__ == "__main__":
         print("以下文件未保存：")
         for file_name in missing_files:
             print(file_name)
+
+    for i in range(len(companies)):
+        for j in range(i + 1, len(companies)):
+            file_name = f"查关系图谱-{companies[i]}&{companies[j]}-天眼查.png"
+            text = f"{companies[i]}&{companies[j]}关联关系\n"  # 换行
+            image_info = (file_name, text)
+            images_info.append(image_info)
+
+    create_word_document(images_info)
