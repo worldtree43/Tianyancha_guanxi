@@ -8,17 +8,35 @@ from selenium.webdriver.common.action_chains import ActionChains
 from docx import Document
 from docx.shared import Inches
 from PIL import Image
+from io import BytesIO
+import tkinter as tk
+from tkinter import filedialog
 import time
 import pandas as pd
 import random
 import os
+import sys
+
+def choose_excel_file():
+    global excel_file
+    file_path = filedialog.askopenfilename()
+    if file_path:
+        excel_file = file_path
+        excel_label.config(text=f"已选择的 Excel 文件：{excel_file}")
+
+def choose_downloads_folder():
+    global downloads_folder
+    folder_path = filedialog.askdirectory()
+    if folder_path:
+        downloads_folder = folder_path
+        folder_label.config(text=f"已选择的下载文件夹：{downloads_folder}")
 
 # 从excel中获取公司名称
 def get_companies(file_path, sheet_name, column_name):
     df = pd.read_excel(file_path, sheet_name=sheet_name)
     return df[column_name].tolist()
 
-def tianyancha_relation_screenshot(companies, max_retry = 2):
+def tianyancha_relation_screenshot(companies, download_folder, max_retry = 1):
     # 配置ChromeOptions，指定浏览器驱动路径
     chrome_options = Options()
     chrome_options.add_argument("--disable-gpu")  # 禁用GPU加速，解决部分环境下的问题
@@ -79,6 +97,18 @@ def tianyancha_relation_screenshot(companies, max_retry = 2):
                 except Exception as e:
                     # 处理加载失败情况，点击搜索按钮再次尝试查询
                     print(f"加载失败，尝试重新查询，错误信息：{e}")
+
+                    # 获取整个页面的截图
+                    screenshot = driver.get_screenshot_as_png()
+                    # 将截图数据转换成PIL的Image对象
+                    screenshot_image = Image.open(BytesIO(screenshot))
+
+                    # 设置保存截图的文件名，例如：'ab公司关联关系.png'
+                    filename = f"{companies[i]}{companies[j]}公司关联关系.png"
+                    save_path = os.path.join(download_folder, filename)
+                    # 保存截图
+                    screenshot_image.save(save_path)
+
                     retry_count += 1
                     driver.refresh()
                     time.sleep(3)
@@ -88,16 +118,6 @@ def tianyancha_relation_screenshot(companies, max_retry = 2):
     # 关闭浏览器
     driver.quit()
 
-def find_missing_files(folder_path, companies):
-    missing_files = []
-    for i in range(len(companies)):
-        for j in range(i + 1, len(companies)):
-            file_name = f"查关系图谱-{companies[i]}&{companies[j]}-天眼查.png"
-            file_path = os.path.join(folder_path, file_name)
-            if not os.path.exists(file_path):
-                missing_files.append(file_name)
-    return missing_files
-
 def insert_image_and_text(doc, image_path, text):
     try:
         doc.add_paragraph().add_run().add_picture(image_path, width=Inches(6.0))
@@ -105,30 +125,20 @@ def insert_image_and_text(doc, image_path, text):
     except FileNotFoundError as e:
         print(f"忽略图片 {image_path}，原因：{e}")
 
-def create_word_document(images_info):
+def create_word_document(images_info, downloads_folder):
     doc = Document()
     for image_info in images_info:
         image_name, text = image_info
-        image_path = os.path.join("/Users/zhonghaitian/Downloads", image_name)
+        image_path = os.path.join(downloads_folder, image_name)
         insert_image_and_text(doc, image_path, text)
     doc.save("公司关联关系表.docx")
 
-if __name__ == "__main__":
-    excel_file = '/Users/zhonghaitian/Desktop/公司名称.xlsx'
+def process_files():
     sheet_name = 'Sheet1'
     company_column = '公司列表'
     images_info = []
     companies = get_companies(excel_file, sheet_name, company_column)
-    tianyancha_relation_screenshot(companies, max_retry=2)
-    downloads_folder = "/Users/zhonghaitian/Downloads"
-    missing_files = find_missing_files(downloads_folder, companies)
-
-    if len(missing_files) == 0:
-        print("所有文件已保存。")
-    else:
-        print("以下文件未保存：")
-        for file_name in missing_files:
-            print(file_name)
+    tianyancha_relation_screenshot(companies, max_retry=1)
 
     for i in range(len(companies)):
         for j in range(i + 1, len(companies)):
@@ -137,4 +147,36 @@ if __name__ == "__main__":
             image_info = (file_name, text)
             images_info.append(image_info)
 
-    create_word_document(images_info)
+    create_word_document(images_info,downloads_folder)
+    sys.exit()
+
+# 创建主窗口
+root = tk.Tk()
+root.title("天眼查关联关系图片批量下载程序")
+
+excel_file = ''
+downloads_folder = ""
+
+excel_label = tk.Label(root, text="在选择Excel文件前, 请先确保公司信息\n在'Sheet1'表,'公司列表'列中")
+excel_label.pack(pady=5)
+
+# 创建选择文件和文件夹的按钮
+excel_btn = tk.Button(root, text="选择Excel文件", command=choose_excel_file)
+excel_btn.pack(pady=10)
+
+folder_btn = tk.Button(root, text="选择下载文件夹", command=choose_downloads_folder)
+folder_btn.pack(pady=10)
+
+# 创建用于显示文件名称的标签
+excel_label = tk.Label(root, text=f"已选择的 Excel 文件：{excel_file}")
+excel_label.pack(pady=5)
+
+folder_label = tk.Label(root, text=f"已选择的下载文件夹：{downloads_folder}")
+folder_label.pack(pady=5)
+
+# 创建处理文件的按钮
+process_btn = tk.Button(root, text="开始下载图片并生成word文档", command=process_files)
+process_btn.pack(pady=20)
+
+# 开启主循环
+root.mainloop()
